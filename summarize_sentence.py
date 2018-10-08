@@ -20,6 +20,10 @@ class SummarizeParagraph(object):
         return nltk.sent_tokenize(text)
 
     def summarize(self, text):
+        if not text.strip():
+            return ''
+
+        print text
         stopwords = nltk.corpus.stopwords.words('english')
         text, preprocessed_text = self.preprocess(text)
         print preprocessed_text
@@ -50,6 +54,25 @@ class SummarizeParagraph(object):
         summary = ' '.join(summary_sentences)
         return summary
 
-summarize_para = SummarizeParagraph(3)
-para = "Artificial intelligence (AI), sometimes called machine intelligence, is intelligence demonstrated by machines, in contrast to the natural intelligence displayed by humans and other animals. Many tools are used in AI, including versions of search and mathematical optimization, artificial neural networks, and methods based on statistics, probability and economics. The traditional problems (or goals) of AI research include reasoning, knowledge representation, planning, learning, natural language processing, perception and the ability to move and manipulate objects. When access to digital computers became possible in the middle 1950s, AI research began to explore the possibility that human intelligence could be reduced to symbol manipulation. One proposal to deal with this is to ensure that the first generally intelligent AI is 'Friendly AI', and will then be able to control subsequently developed AIs. Nowadays, the vast majority of current AI researchers work instead on tractable  applications (such as medical diagnosis or automobile navigation). Machine learning, a fundamental concept of AI research since the field's inception, is the study of computer algorithms that improve automatically through experience."
-print(summarize_para.summarize(para))
+
+def read_news_articles():
+    num_files = 1
+    data_str = ''
+    for num_file in range(num_files):
+        file_path = "Thread_" + str(num_file) + ".dat"
+        with open(file_path, "r") as fp:
+            data_str += fp.read()
+    lines = data_str.split("##")
+    lines = map(lambda line: line.split("|"), lines)
+    lines =  filter(lambda tup: len(tup) == 2, lines)
+    lines = filter(lambda tup: tup[1].strip() != 'Empty', lines)
+    lines = map(lambda tup: (tup[0], tup[1].lower().replace("\n", ".")), lines)
+    return lines
+
+tuples = read_news_articles()
+summarize_para = SummarizeParagraph(6)
+for id, text in tuples:
+    print(summarize_para.summarize(re.sub(r'[^\x00-\x7f]',r'', text)))
+
+
+
