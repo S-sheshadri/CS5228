@@ -2,6 +2,7 @@
     Vocabulary builder from titles column.
 """
 import re
+import numpy as np
 import pickle
 import gensim
 from gensim import corpora
@@ -10,20 +11,26 @@ from nltk.tokenize import word_tokenize
 from nltk.stem.porter import PorterStemmer
 from gensim.models.doc2vec import TaggedDocument
 
-def read_titles(title_path):
+def read_titles():
     titles = []
-    with open(title_path, "r") as fp:
-        titles = fp.read().lower().strip().split("\n")
+    with open("titles", "r") as fp:
+        for line in fp:
+            try:
+                id, sent = line.lower().split("|")
+            except:
+                splitted = line.lower().split("|")
+                id,sent = splitted[0], ' '.join(splitted[1:])
+                
+            titles.append((id, [sent.strip()]))
     return titles
 
 def read_news_articles():
     num_files = 4
-    data_str = ''
+    lines = []
     for num_file in range(num_files):
-        file_path = "Thread_" + str(num_file) + ".dat"
+        file_path = "test_data/Thread_" + str(num_file) + ".dat"
         with open(file_path, "r") as fp:
-            data_str += fp.read()
-    lines = data_str.split("##")
+            lines += fp.read().split("##")
     lines = map(lambda line: line.split("|"), lines)
     lines =  filter(lambda tup: len(tup) == 2, lines)
     lines = filter(lambda tup: tup[1].strip() != 'Empty', lines)
@@ -77,27 +84,27 @@ def get_representation(preliminary_count, size):
 
     while len(representation) < size:
         representation.append(0)
-    print(preliminary_count)
-    print(representation)
-    print(len(representation))
     return representation
 
 def create_bow(stemmed_tokens):
     texts = []
     for id, lines in stemmed_tokens:
         texts += lines
+    print texts
     dictionary = corpora.Dictionary(texts)
     dictionary.save('dictionary.dict')
     
     size_of_dictionary = len(dictionary)
     #Get the doc 2 bag-of-words model
     bow_representation = []
+    id_list = []
     for id, lines in stemmed_tokens:
         para = []
         for line in lines:
             para += line
-        bow_representation.append((id, get_representation(dictionary.doc2bow(para), size_of_dictionary)))
-    return bow_representation
+        id_list.append(id)
+        bow_representation.append(get_representation(dictionary.doc2bow(para), size_of_dictionary))
+    return np.array(id_list), np.array(bow_representation)
 
 
 def create_doc_two_vec(docs):
@@ -111,17 +118,45 @@ def create_doc_two_vec(docs):
     model.train(docs, total_examples=len(docs), epochs=200)
     return model
 
+def complete_preprocessing(lines):
+    processed_lines = map(lambda tup: (tup[0], preprocess(tup[1])) if tup[1] != 'Empty' else tup, lines)
+    tokenized_lines = map(lambda tup: (tup[0], tokenize(tup[1])), processed_lines)
+    stopword_removed_lines = map(lambda tup: (tup[0], remove_stopwords(tup[1])), tokenized_lines)
+    stemmed_tokens = map(lambda tup: (tup[0], stem(tup[1])), stopword_removed_lines)
+    return stemmed_tokens
 
-lines = read_news_articles()
-#path = "titles"
-#lines = read_titles(path)
-processed_lines = map(lambda tup: (tup[0], preprocess(tup[1])) if tup[1] != 'Empty' else tup, lines)
-tokenized_lines = map(lambda tup: (tup[0], tokenize(tup[1])), processed_lines)
-stopword_removed_lines = map(lambda tup: (tup[0], remove_stopwords(tup[1])), tokenized_lines)
-#tagged_docs = tag_docs(stopword_removed_lines)
-#print(tagged_docs)
-stemmed_tokens = map(lambda tup: (tup[0], stem(tup[1])), stopword_removed_lines)
-bow = create_bow(stemmed_tokens)
+def augment_with_title(lines, all_lines):
+    out = []
+    curr_id = 0
+    for id, text in lines:
+        if id == str(curr_id):
+            out.append((id, text))
+        else:
+            while str(curr_id) != id:
+                out.append(all_lines[curr_id])
+                curr_id += 1
+            out.append((id, text))
+        curr_id += 1
+    return out
+
+#print("Reading articles")
+#articles = read_news_articles()
+"""
+print("Reading titles")
+titles = read_titles()
+#print("Processing articles")
+#prepreprocessed_articles = complete_preprocessing(articles)
+print("processing titles")
+preprocessed_titles = complete_preprocessing(titles)
+print("augmenting with titles")
+#full_representation = augment_with_title(prepreprocessed_articles, preprocessed_titles)
+#print(full_representation)
+id, bow = create_bow(preprocessed_titles)
+print(id.shape, bow.shape)
+np.save("ids", id)
+np.save("bow_titles", bow)
+
+"""
 
 #print stopword_removed_titles
 #model = create_doc_two_vec(tagged_docs)

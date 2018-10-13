@@ -23,7 +23,7 @@ def get_urls(urlpath):
 def worker(thread_num, 
             urls):
     url_text = []
-    thread_file = open("Thread_"+str(thread_num) + ".dat", "a+")
+    thread_file = open("test_data/Thread_"+str(thread_num) + ".dat", "a+")
     for (idx,url) in urls:
         print(thread_num, idx, url)
         try:
